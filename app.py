@@ -1,13 +1,13 @@
-from agent import generate_reply
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import time
 
-from auth import validate_api_key
-from scam_detector import detect_scam
-from memory import get_conversation
-from extractor import extract_intelligence
+from honeypot.agent import generate_reply
+from honeypot.auth import validate_api_key
+from honeypot.memory import get_conversation
+from honeypot.extractor import extract_intelligence
+from honeypot.scam_detector import detect_scam
 
 app = FastAPI()
 
@@ -44,20 +44,16 @@ def honeypot(payload: HoneypotRequest, authorization: str = Header(None)):
     agent_reply = None
 
     if scam_result["is_scam"]:
-        # Update memory
         memory["turns"] += 1
         memory["messages"].append(f"Scammer: {payload.message}")
 
-        # Extract intelligence
         extract_intelligence(payload.message, memory)
 
-        # 🔥 GENERATE AI AGENT RESPONSE
         agent_reply = generate_reply(
             conversation_history=memory["messages"],
             last_message=payload.message
         )
 
-        # Store agent reply
         memory["messages"].append(f"Agent: {agent_reply}")
 
     engagement_duration = round(time.time() - memory["start_time"], 2)
@@ -66,7 +62,7 @@ def honeypot(payload: HoneypotRequest, authorization: str = Header(None)):
         "scam_detected": scam_result["is_scam"],
         "confidence_score": scam_result["confidence"],
         "agent_engaged": scam_result["is_scam"],
-        "agent_reply": agent_reply,  # ⭐ VERY IMPORTANT
+        "agent_reply": agent_reply,
         "conversation_metrics": {
             "turns": memory["turns"],
             "engagement_duration": f"{engagement_duration}s"
